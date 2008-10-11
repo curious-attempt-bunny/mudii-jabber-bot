@@ -19,7 +19,7 @@ class Main {
 		connection.connect()
 		connection.login("$user@gmail.com", password)
 		
-		Roster roster = connection.getRoster();
+		Roster roster = connection.getRoster()
 		roster.addRosterListener([
             presenceChanged:{presence ->
 		    	println "$presence.from available: $presence.available"
@@ -34,6 +34,6 @@ class Main {
 
 		chat.sendMessage("Hi!")
 
-		Thread.sleep(5000);
+		Thread.sleep(5000)
 	}
 }
