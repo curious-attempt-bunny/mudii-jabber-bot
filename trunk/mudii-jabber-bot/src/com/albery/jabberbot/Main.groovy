@@ -1,17 +1,19 @@
 package com.albery.jabberbot
 import org.jivesoftware.smack.*
+import com.albery.comms.*
 
 class Main {
 	static void main(args) {
-		if (args.length == 3)
-			new Main(user:args[0], password:args[1], partner:args[2]).run()
+		if (args.length == 6)
+			new Main(user:args[0], password:args[1], partner:args[2], mudAccount: args[3], mudPassword: args[4], mudUser: args[5] ).run()
 		else
-			println "Usage: <user> <password> <partner jabber id>"
+			println "Usage: <user> <password> <partner jabber id> <mud account> <mud password> <mud user>"
 	}
 	
 	def user
 	def password
 	def partner
+	def mudAccount, mudPassword, mudUser
 	
 	def run() {
 		XMPPConnection connection = new XMPPConnection("gmail.com")
@@ -19,21 +21,29 @@ class Main {
 		connection.connect()
 		connection.login("$user@gmail.com", password)
 		
-		Roster roster = connection.getRoster()
-		roster.addRosterListener([
-            presenceChanged:{presence ->
-		    	println "$presence.from available: $presence.available"
-		    }
-		] as RosterListener)
+//		Roster roster = connection.getRoster()
+//		roster.addRosterListener([
+//            presenceChanged:{presence ->
+//		    	println "$presence.from available: $presence.available"
+//		    }
+//		] as RosterListener)
+//
+//        roster.reload()
+//
 
-        roster.reload()
-
+		def mudii = new MudIIConnection(mudAccount:mudAccount, mudPassword:mudPassword, mudUser:mudUser)
+		
 		def chat = connection.getChatManager().createChat(partner, { chat, message ->
-	        println("Received message: " + message.body)
+	        mudii.sendCommand(message.body)
 		} as MessageListener)
 
-		chat.sendMessage("Hi!")
-
-		Thread.sleep(5000)
+		mudii.eachChunk { chunk ->
+			println "CHUNK: $chunk"
+			if (chunk.startsWith("<09")) {
+				def event = chunk.replaceAll("<01><0102>\\*<><>", "").replaceAll("<.*?>", "").trim()
+				println "EVENT: "+event
+				chat.sendMessage(event)
+			}
+		}
 	}
 }
