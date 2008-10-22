@@ -32,18 +32,28 @@ class Main {
 //
 
 		def mudii = new MudIIConnection(mudAccount:mudAccount, mudPassword:mudPassword, mudUser:mudUser)
+		def echoNext = false
 		
 		def chat = connection.getChatManager().createChat(partner, { chat, message ->
-	        mudii.sendCommand(message.body)
+	        try {
+	        	mudii.sendCommand(message.body)
+	        	echoNext = true
+	        } catch (RuntimeException e) {
+	        	chat.sendMessage(e.getMessage())
+	        }
 		} as MessageListener)
 
-		mudii.eachChunk { chunk ->
-			println "CHUNK: $chunk"
-			if (chunk.startsWith("<09")) {
-				def event = chunk.replaceAll("<01><0102>\\*<><>", "").replaceAll("<.*?>", "").trim()
-				println "EVENT: "+event
-				chat.sendMessage(event)
+		while(true) {
+			mudii.eachChunk { chunk ->
+				println "CHUNK: $chunk"
+				if (chunk.startsWith("<09") || echoNext == true || chunk.startsWith("<05")) {
+					echoNext = false
+					def event = chunk.replaceAll("<01><0102>\\*<><>", "").replaceAll("<.*?>", "").trim()
+					println "EVENT: "+event
+					chat.sendMessage(event)
+				}
 			}
+			chat.sendMessage("Reset");
 		}
 	}
 }
