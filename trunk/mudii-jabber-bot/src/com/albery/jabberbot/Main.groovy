@@ -21,39 +21,61 @@ class Main {
 		connection.connect()
 		connection.login("$user@gmail.com", password)
 		
-//		Roster roster = connection.getRoster()
-//		roster.addRosterListener([
-//            presenceChanged:{presence ->
-//		    	println "$presence.from available: $presence.available"
-//		    }
-//		] as RosterListener)
-//
-//        roster.reload()
-//
+		def online = false
+		
+		Roster roster = connection.getRoster()
+		roster.addRosterListener([
+            presenceChanged:{presence ->
+		    	println "$presence.from away: $presence.away"
+		    	if (presence.from.contains(partner)) {
+		    		online = !presence.away
+		    	}
+		    }
+		] as RosterListener)
 
-		def mudii = new MudIIConnection(mudAccount:mudAccount, mudPassword:mudPassword, mudUser:mudUser)
+        roster.reload()
+
+        def mudii = new MudIIConnection(mudAccount:mudAccount, mudPassword:mudPassword, mudUser:mudUser)
 		def echoNext = false
 		
 		def chat = connection.getChatManager().createChat(partner, { chat, message ->
 	        try {
-	        	mudii.sendCommand(message.body)
-	        	echoNext = true
+	        	if (message.body) {
+	        		if (mudii.output) {
+			        	mudii.sendCommand(message.body)
+			        	echoNext = message.body
+	        		}
+	        	}
 	        } catch (RuntimeException e) {
 	        	chat.sendMessage(e.getMessage())
 	        }
 		} as MessageListener)
 
 		while(true) {
-			mudii.eachChunk { chunk ->
-				println "CHUNK: $chunk"
-				if (chunk.startsWith("<09") || echoNext == true || chunk.startsWith("<05")) {
-					echoNext = false
-					def event = chunk.replaceAll("<01><0102>\\*<><>", "").replaceAll("<.*?>", "").trim()
-					println "EVENT: "+event
-					chat.sendMessage(event)
-				}
+			while (!online) {
+				println "[away]"
+				Thread.sleep(5000)
 			}
-			chat.sendMessage("Reset");
+			
+			try {
+				mudii.eachChunk { chunk ->
+					if (!online) throw new InterruptedException()
+					
+					println "CHUNK: $chunk"
+					if (chunk.startsWith("<09") || echoNext || chunk.startsWith("<05")) {
+						def event = chunk.replaceAll("<01><0102>\\*<><>", "").replaceAll("<.*?>", "").trim()
+						if (echoNext && event.startsWith(echoNext)) {
+	                        event = event.substring(echoNext.length()).trim()
+	                    }
+						println "EVENT: "+event
+						chat.sendMessage(event)
+						echoNext = false
+					}
+				}
+				chat.sendMessage("Reset");
+			} catch (InterruptedException e) {
+				println "[away]"
+			}
 		}
 	}
 }
