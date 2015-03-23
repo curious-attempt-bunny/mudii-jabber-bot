@@ -1,0 +1,1 @@
+A Jabber (XMPP) Bot for mudii.co.uk
